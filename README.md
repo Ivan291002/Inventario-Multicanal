@@ -1,58 +1,216 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 📦 Sistema de Inventario Multicanal
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistema backend de gestión de inventario desarrollado en **Laravel 12** que implementa y compara cuatro paradigmas de comunicación y arquitecturas de API sobre un mismo modelo de datos:
 
-## About Laravel
+1. **REST API**: CRUD estándar con serialización JSON sobre HTTP.
+2. **GraphQL**: Consultas y mutaciones tipadas y sin sobrecarga de datos con Nuwave Lighthouse.
+3. **WebSockets (Event-Driven)**: Notificaciones reactivas y sincronización de stock en tiempo real con Laravel Reverb y Laravel Echo.
+4. **gRPC**: Comunicación binaria de alto rendimiento y bajo overhead mediante Protocol Buffers y un microservicio en Node.js.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+El proyecto incluye una bitácora detallada de resolución de errores en [RESUMEN_TRABAJO_PRACTICO.md](RESUMEN_TRABAJO_PRACTICO.md).
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## 🏛️ Arquitectura del Sistema
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+                      ┌────────────────────────────────────────┐
+                      │          Clientes / Consumidores       │
+                      └───────┬─────────┬─────────┬────────────┘
+                              │         │         │
+                   REST (JSON)│  GraphQL│         │ WebSockets
+                              │         │         │ (Reverb)
+                              ▼         ▼         ▼
+                      ┌────────────────────────────────────────┐
+                      │             Laravel 12                 │
+                      │  - Controllers (Api/ProductoController)│
+                      │  - Lighthouse Schema & Mutators        │
+                      │  - ProductoService (Lógica de Negocio) │
+                      │  - Eventos (ProductoActualizado)       │
+                      │  - Base de Datos (SQLite + Eloquent)   │
+                      └──────────────────▲─────────────────────┘
+                                         │ HTTP Interno
+                                         │ (X-Internal-Key)
+                                         ▼
+                      ┌────────────────────────────────────────┐
+                      │         Servicio gRPC (Node.js)        │
+                      │  - Puerto 50051 (HTTP/2)               │
+                      │  - Protocol Buffers (producto.proto)   │
+                      └──────────────────▲─────────────────────┘
+                                         │ gRPC (Binario)
+                              ┌──────────┴──────────┐
+                              │  Cliente gRPC CLI   │
+                              └─────────────────────┘
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+---
 
-## Contributing
+## 🚀 Requisitos Previos
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- **PHP** >= 8.2 (con extensiones `pdo_sqlite`, `curl`, `mbstring`)
+- **Composer**
+- **Node.js** >= 18.x y **npm**
+- **Git**
 
-## Code of Conduct
+---
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## 🛠️ Instalación y Configuración
 
-## Security Vulnerabilities
+### 1. Clonar el repositorio
+```bash
+git clone https://github.com/Ivan291002/Inventario-Multicanal.git
+cd Inventario-Multicanal
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 2. Dependencias de PHP y entorno
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+```
 
-## License
+### 3. Base de datos y datos de prueba
+Crear la base de datos SQLite y ejecutar las migraciones con sus seeders:
+```bash
+# En Windows PowerShell:
+New-Item -ItemType File -Path database/database.sqlite -Force
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+# Ejecutar migraciones y seeders
+php artisan migrate --seed
+```
+
+### 4. Dependencias de Frontend y WebSockets
+```bash
+npm install
+npm run build
+```
+
+### 5. Dependencias del Servicio gRPC
+```bash
+cd grpc
+npm install
+cd ..
+```
+
+---
+
+## ⚙️ Puesta en Marcha
+
+Para tener los cuatro canales operativos, abre diferentes terminales:
+
+### Terminal 1: Servidor Web de Laravel
+```bash
+php artisan serve
+# Disponible en: http://127.0.0.1:8000
+```
+
+### Terminal 2: Servidor WebSocket (Laravel Reverb)
+```bash
+php artisan reverb:start
+```
+
+### Terminal 3: Cola de eventos (Queue Worker)
+```bash
+php artisan queue:work
+```
+
+### Terminal 4: Servidor gRPC (Node.js)
+```bash
+cd grpc
+node server.cjs
+# Escuchando en 0.0.0.0:50051
+```
+
+---
+
+## 🧪 Pruebas de Cada Canal
+
+### 1. REST API (`/api/productos`)
+
+- **Listar productos (GET):**
+  ```powershell
+  Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/productos"
+  ```
+- **Obtener producto por ID (GET):**
+  ```powershell
+  Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/productos/2"
+  ```
+- **Crear producto (POST):**
+  ```powershell
+  $body = @{ nombre = "Webcam HD"; precio = 45.50; stock = 15 } | ConvertTo-Json
+  Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/productos" -Method Post -Body $body -ContentType "application/json"
+  ```
+- **Actualizar stock (PATCH/PUT):**
+  ```powershell
+  $body = @{ stock = 25 } | ConvertTo-Json
+  Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/productos/2" -Method Put -Body $body -ContentType "application/json"
+  ```
+
+---
+
+### 2. GraphQL (`/graphql`)
+
+Accede a la interfaz GraphQL en `http://127.0.0.1:8000/graphql` o mediante Postman:
+
+- **Consulta (Query):**
+  ```graphql
+  query {
+    productos {
+      id
+      nombre
+      precio
+      stock
+    }
+  }
+  ```
+
+- **Mutación para actualizar stock (Mutation):**
+  ```graphql
+  mutation {
+    actualizarStock(id: 2, stock: 40) {
+      id
+      nombre
+      stock
+    }
+  }
+  ```
+
+---
+
+### 3. WebSockets en Tiempo Real (`/inventario`)
+
+1. Abre el navegador en: `http://127.0.0.1:8000/inventario`.
+2. Verás el tablero de control de inventario en tiempo real.
+3. Modifica el stock de cualquier producto mediante la REST API, GraphQL o gRPC.
+4. Verás cómo el cambio impacta instantáneamente en la interfaz web sin recargar la página gracias al evento `ProductoActualizado` distribuido por Laravel Reverb y escuchado con Laravel Echo.
+
+---
+
+### 4. gRPC (Servicio Binario)
+
+Con el servidor gRPC corriendo (`node grpc/server.cjs`), ejecuta el cliente de prueba en otra terminal:
+
+```bash
+cd grpc
+node client.cjs
+```
+
+El cliente consultará un producto mediante RPC binario tipado por `grpc/producto.proto` y mostrará la respuesta serializada.
+
+---
+
+## 📊 Comparativa de Protocolos
+
+| Característica | REST | GraphQL | WebSockets | gRPC |
+| :--- | :--- | :--- | :--- | :--- |
+| **Protocolo de transporte** | HTTP/1.1 o HTTP/2 | HTTP/1.1 o HTTP/2 | WebSocket (TCP duplex) | HTTP/2 |
+| **Formato de datos** | JSON (Texto) | JSON (Texto) | JSON (Texto) | Protocol Buffers (Binario) |
+| **Modelo de comunicación** | Petición / Respuesta | Petición / Respuesta | Bidireccional / Eventos | RPC (Unario o Streaming) |
+| **Eficiencia de payload** | Sufre de over/underfetching | Óptima (payload exacto pedido) | Óptima para notificaciones | Máxima (binario comprimido) |
+| **Caso de uso óptimo** | APIs públicas y CRUD general | Frontends complejos y dashboards | Interfaces reactivas en vivo | Microservicios de alto rendimiento |
+
+---
+
+## 📚 Documentación Adicional
+
+- [RESUMEN_TRABAJO_PRACTICO.md](RESUMEN_TRABAJO_PRACTICO.md): Bitácora completa de los 9 errores encontrados durante el desarrollo, causas profundas y cómo se resolvieron.
